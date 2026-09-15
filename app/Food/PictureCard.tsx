@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Star, ShoppingBag, Heart, Plus, Check } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export type FoodMenuItem = {
   id: string;
@@ -33,15 +34,18 @@ export default function PictureCard({
   onAddToCartAction,
   index = 0,
 }: PictureCardProps) {
+  const { requireAuth } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [imgSrc, setImgSrc] = useState(item.imageUrl);
   const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80";
 
   const handleAdd = () => {
-    setIsAdded(true);
-    onAddToCartAction?.(item);
-    setTimeout(() => setIsAdded(false), 1500);
+    requireAuth(() => {
+      setIsAdded(true);
+      onAddToCartAction?.(item);
+      setTimeout(() => setIsAdded(false), 1500);
+    }, `Please sign in to order ${item.name}.`);
   };
 
   return (

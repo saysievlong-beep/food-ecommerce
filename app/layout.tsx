@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// import TopBar from "./components/topbar";
+import { AuthProvider } from "./context/AuthContext";
+
+export const metadata: Metadata = {
+  title: "TastyByte - Food & Ordering",
+  description: "Delicious chef-crafted food and drinks delivered fresh to your door.",
+};
 
 export default function RootLayout({
   children,
@@ -11,8 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* <TopBar /> */}
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

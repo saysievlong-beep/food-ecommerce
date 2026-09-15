@@ -8,6 +8,7 @@ import Sidebar from "../components/sidebar";
 import Footer from "../components/Footer";
 import PictureCard, { FoodMenuItem } from "./PictureCard";
 import CartPanel, { CartItem } from "./CartPanel";
+import { useAuth } from "../context/AuthContext";
 import {
   Search,
   Sparkles,
@@ -489,20 +490,27 @@ const CATEGORY_META: Record<
 function FoodCatalogContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const searchParam = searchParams.get("search") || searchParams.get("q");
 
   const [selectedCategory, setSelectedCategory] = useState<string>(
     categoryParam || "all"
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParam || "");
   const [sortBy, setSortBy] = useState<"featured" | "price-asc" | "price-desc" | "rating">("featured");
   const [vegetarianOnly, setVegetarianOnly] = useState(false);
 
-  // Sync category selection when URL query param changes (e.g. from sidebar on Home page)
+  // Sync category and search query selection when URL query param changes
   useEffect(() => {
     if (categoryParam) {
       setSelectedCategory(categoryParam);
     }
   }, [categoryParam]);
+
+  useEffect(() => {
+    if (searchParam !== null && searchParam !== undefined) {
+      setSearchQuery(searchParam);
+    }
+  }, [searchParam]);
 
   // Cart State - starts completely empty (0 items)
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -514,6 +522,8 @@ function FoodCatalogContent() {
   const currentMeta = CATEGORY_META[selectedCategory] || CATEGORY_META.all;
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalCartSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const { requireAuth } = useAuth();
 
   // Filter & sort food items
   const filteredItems = useMemo(() => {
@@ -543,31 +553,33 @@ function FoodCatalogContent() {
     });
   }, [selectedCategory, searchQuery, vegetarianOnly, sortBy]);
 
-  // When Add is pressed -> Add item silently and update counters without forcefully jumping open the sidebar
+  // When Add is pressed -> Requires user to be logged in before adding to cart
   const handleAddToCart = (food: FoodMenuItem) => {
-    setCartItems((prev) => {
-      const existing = prev.find((i) => i.id === food.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            id: food.id,
-            name: food.name,
-            category: food.category,
-            price: food.price,
-            quantity: 1,
-            imageUrl: food.imageUrl,
-          },
-        ];
-      }
-    });
+    requireAuth(() => {
+      setCartItems((prev) => {
+        const existing = prev.find((i) => i.id === food.id);
+        if (existing) {
+          return prev.map((i) =>
+            i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
+          );
+        } else {
+          return [
+            ...prev,
+            {
+              id: food.id,
+              name: food.name,
+              category: food.category,
+              price: food.price,
+              quantity: 1,
+              imageUrl: food.imageUrl,
+            },
+          ];
+        }
+      });
 
-    setLastAddedItem(food.name);
-    setTimeout(() => setLastAddedItem(null), 3000);
+      setLastAddedItem(food.name);
+      setTimeout(() => setLastAddedItem(null), 3000);
+    }, `Please log in to order ${food.name}.`);
   };
 
   const handleUpdateQuantity = (id: string, newQty: number) => {

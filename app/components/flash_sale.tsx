@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Zap, Flame, Clock, Star, Plus, Check, Heart, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
 
 export type FlashSaleItem = {
   id: string;
@@ -88,6 +89,41 @@ export const DEFAULT_FLASH_SALE_ITEMS: FlashSaleItem[] = [
   },
 ];
 
+const PROMOTION_CYCLE_MS = 5 * 60 * 60 * 1000; // 5 hour continuous promotion cycle
+const STORAGE_TIMER_KEY = "tastybyte_flash_sale_end_timestamp_v2";
+
+function getOrInitEndTime(): number {
+  if (typeof window === "undefined") {
+    return Date.now() + PROMOTION_CYCLE_MS;
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_TIMER_KEY);
+    const now = Date.now();
+    if (stored) {
+      const parsedTime = parseInt(stored, 10);
+      if (!isNaN(parsedTime) && parsedTime > now) {
+        return parsedTime;
+      }
+    }
+    // Set continuous 5-hour target
+    const newTarget = now + PROMOTION_CYCLE_MS;
+    localStorage.setItem(STORAGE_TIMER_KEY, String(newTarget));
+    return newTarget;
+  } catch {
+    return Date.now() + PROMOTION_CYCLE_MS;
+  }
+}
+
+function calculateTimeRemaining(targetTime: number) {
+  const now = Date.now();
+  const diff = Math.max(0, targetTime - now);
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return { hours, minutes, seconds, isExpired: diff <= 0 };
+}
+
 export function FlashSaleCard({
   item,
   index = 0,
@@ -97,6 +133,7 @@ export function FlashSaleCard({
   index?: number;
   isVisible?: boolean;
 }) {
+  const { requireAuth } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const percentClaimed = Math.min(100, Math.round((item.soldCount / item.totalStock) * 100));
@@ -104,21 +141,19 @@ export function FlashSaleCard({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1500);
+    requireAuth(() => {
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1500);
+    }, `Please log in to grab flash deal for ${item.name}.`);
   };
 
   return (
     <div
       style={{
-        transitionDelay: `${isVisible ? index * 80 : 0}ms`,
+        transitionDelay: `${index * 60}ms`,
         transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
       }}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white border border-rose-100 shadow-sm transition-all duration-500 hover:-translate-y-2 hover:shadow-xl hover:border-rose-300 ${
-        isVisible
-          ? "opacity-100 translate-y-0 scale-100"
-          : "opacity-0 translate-y-8 scale-95"
-      }`}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white border border-rose-100 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:border-rose-300 opacity-100 translate-y-0"
     >
       {/* Media Image */}
       <div className="relative h-48 w-full overflow-hidden bg-rose-50/50">
@@ -236,7 +271,7 @@ export function FlashSaleCard({
           <button
             type="button"
             onClick={handleAddToCart}
-            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-200 active:scale-95 shadow-xs ${
+            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all duration-200 active:scale-95 shadow-xs cursor-pointer ${
               isAdded
                 ? "bg-rose-600 text-white shadow-rose-200"
                 : "bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white"
@@ -269,60 +304,45 @@ export default function FlashSale({
   subtitle?: string;
   items?: FlashSaleItem[];
 }) {
-  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 28, seconds: 45 });
-  const [isVisible, setIsVisible] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
+  const [timeLeft, setTimeLeft] = useState({
+    hours: 4,
+    minutes: 59,
+    seconds: 36,
+  });
 
+  // Persistent countdown: sync with real time and continue across page reloads/visits
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: 59, seconds: 59 };
-        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        return { hours: 0, minutes: 0, seconds: 0 };
-      });
-    }, 1000);
+    let targetTime = getOrInitEndTime();
 
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "0px 0px -40px 0px",
+    const updateTimer = () => {
+      const remaining = calculateTimeRemaining(targetTime);
+      if (remaining.isExpired) {
+        // Automatically roll over to the next round of flash sale promotions
+        targetTime = Date.now() + PROMOTION_CYCLE_MS;
+        try {
+          localStorage.setItem(STORAGE_TIMER_KEY, String(targetTime));
+        } catch {}
+        setTimeLeft(calculateTimeRemaining(targetTime));
+      } else {
+        setTimeLeft(remaining);
       }
-    );
-
-    const currentEl = sectionRef.current;
-    if (currentEl) observer.observe(currentEl);
-
-    return () => {
-      if (currentEl) observer.unobserve(currentEl);
     };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const formatNumber = (num: number) => String(num).padStart(2, "0");
 
   return (
     <section
-      ref={sectionRef}
+      id="flash-sale"
       className="py-12 bg-gradient-to-b from-rose-50/40 via-white to-slate-50 border-t border-rose-100/70 overflow-hidden"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header with Countdown Timer */}
-        <div
-          className={`flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 transition-all duration-700 ease-out ${
-            isVisible
-              ? "opacity-100 translate-y-0 scale-100"
-              : "opacity-0 translate-y-6 scale-95"
-          }`}
-        >
+        {/* Section Header with Persistent Countdown Timer */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 transition-all duration-300">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700 border border-rose-200 mb-2">
               <Flame size={14} className="fill-rose-600 text-rose-600 animate-bounce" />
@@ -336,7 +356,7 @@ export default function FlashSale({
             </p>
           </div>
 
-          {/* Live Countdown Box */}
+          {/* Live Continuous Countdown Box */}
           <div className="flex items-center gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-rose-200/90 shadow-sm self-start md:self-auto">
             <div className="flex items-center gap-1.5 text-xs font-bold text-rose-600 mr-1">
               <Clock size={16} className="animate-spin" style={{ animationDuration: "10s" }} />
@@ -367,14 +387,14 @@ export default function FlashSale({
           </div>
         </div>
 
-        {/* Grid of Flash Sale Cards */}
+        {/* Grid of Flash Sale Cards (Instantly Loaded & Visible) */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, index) => (
             <FlashSaleCard
               key={item.id}
               item={item}
               index={index}
-              isVisible={isVisible}
+              isVisible={true}
             />
           ))}
         </div>

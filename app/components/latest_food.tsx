@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Star, Heart, Plus, Check, Clock, Flame, Sparkles, ChevronRight, Eye, Store, Award, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
 
 export type LatestFoodItem = {
   id: string;
@@ -169,6 +170,7 @@ export function LatestFoodCard({
   index?: number;
   isVisible?: boolean;
 }) {
+  const { requireAuth } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [imgSrc, setImgSrc] = useState(item.imageUrl);
@@ -178,8 +180,10 @@ export function LatestFoodCard({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1600);
+    requireAuth(() => {
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1600);
+    }, `Please log in to order ${item.name}.`);
   };
 
   return (

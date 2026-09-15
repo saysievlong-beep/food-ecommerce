@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { MapPin } from 'lucide-react';
 
 // Define API response interface for TypeScript
 interface NominatimResponse {
@@ -15,7 +16,6 @@ interface NominatimResponse {
 export default function TopBar() {
   const [location, setLocation] = useState<string>('Location Loading...');
   const [language, setLanguage] = useState<'KH' | 'ENG'>('KH');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -49,25 +49,23 @@ export default function TopBar() {
   };
 
   return (
-    <header className="w-full bg-emerald-600 text-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center text-sm">
-        <div className="flex items-center space-x-2">
-          <span>📍 {location}</span>
+    <header className="w-full bg-emerald-600 text-white shadow-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex justify-between items-center text-xs sm:text-sm">
+        {/* Location on Left */}
+        <div className="flex items-center space-x-2 font-medium">
+          <span className="flex items-center gap-1 text-emerald-100">
+            <MapPin size={14} className="text-amber-300" />
+            <span>{location}</span>
+          </span>
         </div>
 
-        <div className="flex items-center space-x-6">
+        {/* Right: Language Selector */}
+        <div className="flex items-center space-x-3">
           <button
             onClick={toggleLanguage}
-            className="border border-white px-2.5 py-1 rounded-md"
+            className="border border-white/40 hover:border-white px-2.5 py-1 rounded-md transition-colors"
           >
-            <span className="font-medium text-emerald-100">{language}</span>
-          </button>
-
-          <button
-            onClick={() => setIsLoggedIn(!isLoggedIn)}
-            className="bg-white text-emerald-600 px-4 py-1.5 rounded-md font-medium"
-          >
-            {isLoggedIn ? 'Logout' : 'Login'}
+            <span className="font-semibold text-emerald-100">{language}</span>
           </button>
         </div>
       </div>
