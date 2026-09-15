@@ -7,6 +7,7 @@ import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import PictureCard, { FoodMenuItem } from "../Food/PictureCard";
 import CartPanel, { CartItem } from "../Food/CartPanel";
+import { useAuth } from "../context/AuthContext";
 import {
   Search,
   Sparkles,
@@ -548,31 +549,35 @@ function LatestFoodCatalogContent() {
     });
   }, [selectedCategory, searchQuery, vegetarianOnly, newOnly, sortBy]);
 
+  const { requireAuth } = useAuth();
+
   // Add to cart action
   const handleAddToCart = (food: FoodMenuItem) => {
-    setCartItems((prev) => {
-      const existing = prev.find((i) => i.id === food.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            id: food.id,
-            name: food.name,
-            category: food.category,
-            price: food.price,
-            quantity: 1,
-            imageUrl: food.imageUrl,
-          },
-        ];
-      }
-    });
+    requireAuth(() => {
+      setCartItems((prev) => {
+        const existing = prev.find((i) => i.id === food.id);
+        if (existing) {
+          return prev.map((i) =>
+            i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
+          );
+        } else {
+          return [
+            ...prev,
+            {
+              id: food.id,
+              name: food.name,
+              category: food.category,
+              price: food.price,
+              quantity: 1,
+              imageUrl: food.imageUrl,
+            },
+          ];
+        }
+      });
 
-    setLastAddedItem(food.name);
-    setTimeout(() => setLastAddedItem(null), 3000);
+      setLastAddedItem(food.name);
+      setTimeout(() => setLastAddedItem(null), 3000);
+    }, `Please log in to order ${food.name}.`);
   };
 
   const handleUpdateQuantity = (id: string, newQty: number) => {

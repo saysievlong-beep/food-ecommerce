@@ -13,7 +13,9 @@ import {
   Tag,
   Clock,
   ShieldCheck,
+  User,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export type CartItem = {
   id: string;
@@ -43,6 +45,7 @@ export default function CartPanel({
   onClearCartAction,
   isFloatingDrawer = false,
 }: CartPanelProps) {
+  const { requireAuth, user, isLoggedIn } = useAuth();
   const [promoCode, setPromoCode] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [promoError, setPromoError] = useState("");
@@ -89,11 +92,13 @@ export default function CartPanel({
 
   const handleCheckout = () => {
     if (items.length === 0) return;
-    setIsCheckingOut(true);
-    setTimeout(() => {
-      setIsCheckingOut(false);
-      setOrderComplete(true);
-    }, 1500);
+    requireAuth(() => {
+      setIsCheckingOut(true);
+      setTimeout(() => {
+        setIsCheckingOut(false);
+        setOrderComplete(true);
+      }, 1500);
+    }, "Please sign in to confirm and place your order.");
   };
 
   const handleResetAfterOrder = () => {
@@ -183,19 +188,28 @@ export default function CartPanel({
           <p className="text-xs text-gray-500 mt-1.5 max-w-xs">
             Your delicious food is being prepared by our chefs and will arrive in 25-35 minutes.
           </p>
-          <div className="mt-4 p-3 bg-gray-50 rounded-2xl border border-gray-100 w-full text-xs text-left">
-            <div className="flex justify-between py-1 text-gray-600">
+          <div className="mt-4 p-3.5 bg-gray-50 rounded-2xl border border-gray-100 w-full text-xs text-left space-y-1.5">
+            {user && (
+              <div className="flex justify-between items-center py-1 border-b border-gray-200/60 text-gray-600">
+                <span>Customer Account:</span>
+                <span className="font-bold text-gray-900 flex items-center gap-1">
+                  <User size={12} className="text-emerald-600" />
+                  <span>{user.name}</span>
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between py-0.5 text-gray-600">
               <span>Estimated arrival:</span>
               <span className="font-semibold text-gray-900">~30 mins</span>
             </div>
-            <div className="flex justify-between py-1 text-gray-600">
+            <div className="flex justify-between py-0.5 text-gray-600">
               <span>Total Paid:</span>
               <span className="font-bold text-emerald-700">${total.toFixed(2)}</span>
             </div>
           </div>
           <button
             onClick={handleResetAfterOrder}
-            className="mt-6 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+            className="mt-6 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer"
           >
             Order More Food
           </button>

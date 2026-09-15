@@ -1,9 +1,10 @@
 // app/page.tsx
 import TopBar from "./components/topbar";
 import Navbar from "./components/navbar";
+import HomeSearchBar from "./components/HomeSearchBar";
 import Sidebar from "./components/sidebar";
 import BannerSwiper from "./components/banner-swiper";
-import TrendFood, { FoodCard } from "./components/TrendFood";
+import TrendFood from "./components/TrendFood";
 import FlashSale from "./components/flash_sale";
 import LatestFood from "./components/latest_food";
 import DiscountSwiper from "./components/promotion";
@@ -16,6 +17,7 @@ export default function HomePage() {
       <div>
         <TopBar />
         <Navbar />
+        <HomeSearchBar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-stretch gap-6">
           <Sidebar />
           <BannerSwiper />
