@@ -1,20 +1,19 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import TopBar from "../components/topbar";
 import Navbar from "../components/navbar";
 import Footer from "../components/Footer";
 import PictureCard, { FoodMenuItem } from "../Food/PictureCard";
-import CartPanel, { CartItem } from "../Food/CartPanel";
 import { useAuth } from "../context/AuthContext";
+import { useOrders } from "../context/OrderContext";
 import {
   Search,
   Sparkles,
-  ShoppingBag,
   CheckCircle2,
   ArrowUpDown,
-  ChevronRight,
   Flame,
   UtensilsCrossed,
   Pizza,
@@ -500,21 +499,13 @@ function LatestFoodCatalogContent() {
     }
   }, [categoryParam]);
 
-  // Cart State
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<string | null>(null);
 
   const currentMeta =
     LATEST_CATEGORY_META[selectedCategory] || LATEST_CATEGORY_META.all;
-  const totalCartCount = cartItems.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
-  const totalCartSubtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+
+  const { requireAuth } = useAuth();
+  const { orders, activeOrders, totalCartCount, totalCartSubtotal } = useOrders();
 
   // Filter & sort
   const filteredItems = useMemo(() => {
@@ -549,53 +540,10 @@ function LatestFoodCatalogContent() {
     });
   }, [selectedCategory, searchQuery, vegetarianOnly, newOnly, sortBy]);
 
-  const { requireAuth } = useAuth();
-
-  // Add to cart action
+  // Add to cart action - toast confirmation
   const handleAddToCart = (food: FoodMenuItem) => {
-    requireAuth(() => {
-      setCartItems((prev) => {
-        const existing = prev.find((i) => i.id === food.id);
-        if (existing) {
-          return prev.map((i) =>
-            i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
-          );
-        } else {
-          return [
-            ...prev,
-            {
-              id: food.id,
-              name: food.name,
-              category: food.category,
-              price: food.price,
-              quantity: 1,
-              imageUrl: food.imageUrl,
-            },
-          ];
-        }
-      });
-
-      setLastAddedItem(food.name);
-      setTimeout(() => setLastAddedItem(null), 3000);
-    }, `Please log in to order ${food.name}.`);
-  };
-
-  const handleUpdateQuantity = (id: string, newQty: number) => {
-    if (newQty <= 0) {
-      handleRemoveItem(id);
-    } else {
-      setCartItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, quantity: newQty } : i))
-      );
-    }
-  };
-
-  const handleRemoveItem = (id: string) => {
-    setCartItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handleClearCart = () => {
-    setCartItems([]);
+    setLastAddedItem(food.name);
+    setTimeout(() => setLastAddedItem(null), 3000);
   };
 
   return (
@@ -623,7 +571,7 @@ function LatestFoodCatalogContent() {
               </p>
             </div>
 
-            {/* Header Right Stats & Order Button */}
+            {/* Header Right Stats */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
                 <div className="text-left">
@@ -644,18 +592,6 @@ function LatestFoodCatalogContent() {
                   </div>
                 </div>
               </div>
-
-              {/* View Order Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsRightSidebarOpen(true)}
-                className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-gray-950 font-bold px-4 py-2.5 rounded-2xl shadow-sm text-xs transition-all active:scale-95"
-              >
-                <ShoppingBag size={16} />
-                <span>
-                  View Order ({totalCartCount}) • ${totalCartSubtotal.toFixed(2)}
-                </span>
-              </button>
             </div>
           </div>
         </div>
@@ -817,13 +753,6 @@ function LatestFoodCatalogContent() {
                       Added <strong>{lastAddedItem}</strong> to order!
                     </span>
                   </div>
-                  <button
-                    onClick={() => setIsRightSidebarOpen(true)}
-                    className="flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-bold text-[11.5px] bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-1 rounded-xl transition-colors"
-                  >
-                    <span>View Order</span>
-                    <ChevronRight size={13} />
-                  </button>
                 </div>
               )}
 
@@ -867,60 +796,6 @@ function LatestFoodCatalogContent() {
             </div>
           </div>
         </div>
-
-        {/* ============================================================ */}
-        {/* SLIDE-OUT ORDER SIDEBAR (Sliding from Right Side of Screen) */}
-        {/* ============================================================ */}
-        
-        {/* Dimmed Overlay Backdrop */}
-        <div
-          className={`fixed inset-0 bg-black/40 backdrop-blur-xs z-50 transition-opacity duration-300 ${
-            isRightSidebarOpen
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
-          }`}
-          onClick={() => setIsRightSidebarOpen(false)}
-          aria-hidden="true"
-        />
-
-        {/* The Right Order Sidebar Container */}
-        <aside
-          className={`fixed top-0 right-0 bottom-0 w-full sm:w-[420px] max-w-full bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out transform ${
-            isRightSidebarOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-          aria-label="Order Cart Sidebar"
-        >
-          <CartPanel
-            items={cartItems}
-            onCloseAction={() => setIsRightSidebarOpen(false)}
-            onUpdateQuantityAction={handleUpdateQuantity}
-            onRemoveItemAction={handleRemoveItem}
-            onClearCartAction={handleClearCart}
-            isFloatingDrawer={true}
-          />
-        </aside>
-
-        {/* Floating Side Tab / Button (Sticky on right side for easy access) */}
-        <button
-          type="button"
-          onClick={() => setIsRightSidebarOpen((prev) => !prev)}
-          className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-emerald-700 hover:bg-emerald-800 text-white py-3.5 px-3 rounded-l-2xl shadow-xl flex flex-col items-center gap-2 border-l border-t border-b border-emerald-500/40 transition-all ${
-            isRightSidebarOpen ? "translate-x-full" : "translate-x-0"
-          }`}
-          aria-label="Toggle Order Sidebar"
-        >
-          <div className="relative">
-            <ShoppingBag size={20} />
-            {totalCartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-amber-400 text-gray-900 font-extrabold text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
-                {totalCartCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] font-bold tracking-tight writing-mode-vertical">
-            Order • ${totalCartSubtotal.toFixed(0)}
-          </span>
-        </button>
 
       </div>
 

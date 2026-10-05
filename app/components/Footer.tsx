@@ -52,27 +52,28 @@ export default function Footer() {
           {/* Quick Info */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-3">
-              Company
+              Orders &amp; Account
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link href="/about" className="hover:text-emerald-600 transition-colors">
-                  About TastyByte
+                <Link href="/Orders" className="text-emerald-700 font-semibold hover:text-emerald-800 transition-colors flex items-center gap-1">
+                  <span>My Orders &amp; Bills</span>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full font-bold">New</span>
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="hover:text-emerald-600 transition-colors">
-                  Contact Us
+                <Link href="/Orders" className="hover:text-emerald-600 transition-colors">
+                  Track Delivery Status
                 </Link>
               </li>
               <li>
-                <Link href="/blog" className="hover:text-emerald-600 transition-colors">
+                <Link href="/Contact" className="hover:text-emerald-600 transition-colors">
+                  Customer Support
+                </Link>
+              </li>
+              <li>
+                <Link href="/Blog" className="hover:text-emerald-600 transition-colors">
                   Foodie Blog
-                </Link>
-              </li>
-              <li>
-                <Link href="/partners" className="hover:text-emerald-600 transition-colors">
-                  Partner with Us
                 </Link>
               </li>
             </ul>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
+import { OrderProvider } from "./context/OrderContext";
+import FloatingOrderButton from "./components/FloatingOrderButton";
 
 export const metadata: Metadata = {
   title: "TastyByte - Food & Ordering",
@@ -16,7 +18,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          {children}
+          <OrderProvider>
+            {children}
+            <FloatingOrderButton />
+          </OrderProvider>
         </AuthProvider>
       </body>
     </html>

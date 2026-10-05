@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Star, Heart, Plus, Check, Clock, Flame, Sparkles, ChevronRight, Eye, Store, Award, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
+import { useOrders } from "../context/OrderContext";
 
 export type LatestFoodItem = {
   id: string;
@@ -171,6 +172,7 @@ export function LatestFoodCard({
   isVisible?: boolean;
 }) {
   const { requireAuth } = useAuth();
+  const { addToCart } = useOrders();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const [imgSrc, setImgSrc] = useState(item.imageUrl);
@@ -182,6 +184,14 @@ export function LatestFoodCard({
     e.stopPropagation();
     requireAuth(() => {
       setIsAdded(true);
+      addToCart({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        imageUrl: item.imageUrl,
+        quantity: 1,
+      });
       setTimeout(() => setIsAdded(false), 1600);
     }, `Please log in to order ${item.name}.`);
   };
@@ -217,6 +227,15 @@ export function LatestFoodCard({
         {/* Badges Overlay */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
           <div className="flex flex-wrap items-center gap-1.5">
+            {(() => {
+              const catLower = ((item.category || "") + " " + (item.categoryId || "") + " " + (item.name || "")).toLowerCase();
+              const isDouble = catLower.includes("pizza") || catLower.includes("burger") || catLower.includes("drink");
+              return isDouble ? (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 backdrop-blur-md px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider shadow-sm border border-amber-200/40">
+                  ⚡ 2x Points
+                </span>
+              ) : null;
+            })()}
             {item.tag && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/90 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm border border-emerald-400/30">
                 <Sparkles size={11} className="text-emerald-200 animate-pulse" />
@@ -299,9 +318,23 @@ export function LatestFoodCard({
         {/* Card Footer: Price & Action */}
         <div className="mt-4 pt-3.5 border-t border-gray-100 flex items-center justify-between gap-2">
           <div>
-            <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider block">
-              Price
-            </span>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">
+                Price
+              </span>
+              {(() => {
+                const catLower = ((item.category || "") + " " + (item.categoryId || "") + " " + (item.name || "")).toLowerCase();
+                const isDouble = catLower.includes("pizza") || catLower.includes("burger") || catLower.includes("drink");
+                const pts = isDouble ? 2 : 1;
+                return (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md border inline-flex items-center gap-0.5 ${
+                    isDouble ? "text-amber-800 bg-amber-50 border-amber-200" : "text-emerald-800 bg-emerald-50 border-emerald-200"
+                  }`}>
+                    +{pts} {pts === 1 ? "pt" : "pts"} {isDouble && <span className="text-[8px] bg-amber-200 text-amber-900 px-0.5 rounded font-black">2x</span>}
+                  </span>
+                );
+              })()}
+            </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-lg font-extrabold text-emerald-700">
                 ${item.price.toFixed(2)}

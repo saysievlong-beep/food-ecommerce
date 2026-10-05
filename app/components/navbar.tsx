@@ -8,24 +8,34 @@ import {
   LogIn,
   LogOut,
   ShoppingBag,
+  Receipt,
   Heart,
   Settings,
   MapPin,
+  Phone,
   CheckCircle2,
   ChevronDown,
+  Gift,
 } from 'lucide-react';
+import PersonalInfoModal from './PersonalInfoModal';
+import RewardCouponModal from './RewardCouponModal';
 import { useAuth } from '../context/AuthContext';
+import { useOrders } from '../context/OrderContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   const { isLoggedIn, user, openLoginModal, logout } = useAuth();
+  const { orders, totalCartCount } = useOrders();
   const displayName = user?.name || 'Alex Vance';
   const displayEmail = user?.email || 'alex.vance@example.com';
+  const displayPhone = user?.phone || '+855 12 345 678';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -102,14 +112,14 @@ export default function Navbar() {
               })}
             </div>
 
-            {/* Right: User / Login Button (Desktop) */}
+            {/* Right: User Profile / Login Button (Desktop) */}
             <div className="hidden md:flex justify-end items-center" ref={userMenuRef}>
               {isLoggedIn ? (
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-emerald-800 transition-all cursor-pointer shadow-2xs"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 transition-all cursor-pointer shadow-2xs"
                   >
                     <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                       {displayName.charAt(0).toUpperCase()}
@@ -122,41 +132,74 @@ export default function Navbar() {
                         ⭐ {user?.role || 'Gold Member'}
                       </div>
                     </div>
-                    <ChevronDown size={14} className="text-emerald-600" />
+                    <ChevronDown size={14} className="text-gray-500" />
                   </button>
 
                   {/* User Dropdown Menu */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn">
-                      <div className="px-4 py-2 border-b border-gray-100">
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn">
+                      <div className="px-4 py-2.5 border-b border-gray-100">
                         <p className="text-xs font-bold text-gray-900">{displayName}</p>
                         <p className="text-[11px] text-gray-500 truncate">{displayEmail}</p>
+                        {displayPhone && (
+                          <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1 mt-0.5">
+                            <Phone size={11} />
+                            <span>{displayPhone}</span>
+                          </p>
+                        )}
                       </div>
 
                       <div className="py-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setIsProfileModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
+                        >
+                          <User size={14} className="text-emerald-600" />
+                          <span>Personal Info &amp; Profile</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            setIsRewardModalOpen(true);
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Gift size={14} className="text-amber-500" />
+                            <span>Rewards &amp; Coupons</span>
+                          </span>
+                          <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded-full font-black">
+                            {user?.rewardPoints || 0} pts
+                          </span>
+                        </button>
+
+                        <Link
+                          href="/Orders"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-gray-800 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Receipt size={14} className="text-emerald-600" />
+                            <span>My Orders &amp; Bills</span>
+                          </span>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">
+                            {orders.length}
+                          </span>
+                        </Link>
+
                         <Link
                           href="/Food"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
                         >
                           <ShoppingBag size={14} className="text-emerald-600" />
-                          <span>My Orders &amp; Cart</span>
-                        </Link>
-                        <Link
-                          href="/Food"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-                        >
-                          <Heart size={14} className="text-rose-500" />
-                          <span>Saved Favorites</span>
-                        </Link>
-                        <Link
-                          href="/Contact"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
-                        >
-                          <MapPin size={14} className="text-amber-500" />
-                          <span>Delivery Addresses</span>
+                          <span>Food Menu &amp; Cart</span>
                         </Link>
                       </div>
 
@@ -195,13 +238,13 @@ export default function Navbar() {
                 type="button"
                 onClick={() => {
                   if (isLoggedIn) {
-                    logout();
+                    setIsProfileModalOpen(true);
                   } else {
                     openLoginModal('Sign in to your TastyByte account to order food.');
                   }
                 }}
                 className="p-2 rounded-xl text-gray-700 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                aria-label="User Login"
+                aria-label="User Profile"
               >
                 <User size={20} className={isLoggedIn ? 'text-emerald-600' : 'text-gray-700'} />
               </button>
@@ -238,7 +281,7 @@ export default function Navbar() {
                     {isLoggedIn ? displayName : 'Guest User'}
                   </div>
                   <div className="text-[10px] text-emerald-700 font-semibold">
-                    {isLoggedIn ? `⭐ ${user?.role || 'Gold Member'}` : 'Sign in to order food'}
+                    {isLoggedIn ? `${user?.phone || user?.role || 'Personal Info'}` : 'Sign in to order food'}
                   </div>
                 </div>
               </div>
@@ -248,16 +291,36 @@ export default function Navbar() {
                 onClick={() => {
                   setIsOpen(false);
                   if (isLoggedIn) {
-                    logout();
+                    setIsProfileModalOpen(true);
                   } else {
                     openLoginModal('Sign in to your TastyByte account to order food.');
                   }
                 }}
                 className="text-xs font-bold text-emerald-700 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 cursor-pointer"
               >
-                {isLoggedIn ? 'Logout' : 'Login'}
+                {isLoggedIn ? 'Edit Profile' : 'Login'}
               </button>
             </div>
+
+            {/* Mobile Rewards Shortcut */}
+            {isLoggedIn && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsRewardModalOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-2.5 bg-gradient-to-r from-amber-50 to-emerald-50 border border-amber-200/80 rounded-xl text-xs font-bold text-gray-800 cursor-pointer shadow-2xs"
+              >
+                <span className="flex items-center gap-2 text-emerald-950">
+                  <Gift size={15} className="text-amber-500" />
+                  <span>Rewards &amp; Coupons Hub</span>
+                </span>
+                <span className="bg-amber-400 text-gray-950 text-[10.5px] font-black px-2 py-0.5 rounded-full">
+                  {user?.rewardPoints || 0} pts
+                </span>
+              </button>
+            )}
 
             {navLinks.map((link) => {
               const isActive =
@@ -282,9 +345,37 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Mobile Order Menu Shortcut */}
+            <Link
+              href="/Orders"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white shadow-xs"
+            >
+              <span className="flex items-center gap-2">
+                <Receipt size={16} />
+                <span>My Order Menu &amp; Bills</span>
+              </span>
+              <span className="bg-amber-400 text-gray-950 text-xs px-2 py-0.5 rounded-full font-black">
+                {totalCartCount > 0 ? `${totalCartCount} in cart` : `${orders.length} orders`}
+              </span>
+            </Link>
           </div>
         )}
       </nav>
+
+      {/* Personal Info Edit Modal */}
+      <PersonalInfoModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onOpenRewardsAction={() => setIsRewardModalOpen(true)}
+      />
+
+      {/* Rewards & Coupons Hub Modal (Pure Rewards & Coupons data) */}
+      <RewardCouponModal
+        isOpen={isRewardModalOpen}
+        onClose={() => setIsRewardModalOpen(false)}
+      />
     </>
   );
 }

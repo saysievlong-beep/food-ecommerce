@@ -1,25 +1,99 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import {
-  Sparkles,
-  X,
-  User,
-  Lock,
-  Mail,
-  CheckCircle2,
-  ShieldCheck,
-  ArrowRight,
-  UtensilsCrossed,
-  KeyRound,
-} from 'lucide-react';
+import { CheckCircle2, Gift } from 'lucide-react';
+import LoginModal from '../components/LoginModal';
+
+export type UserCoupon = {
+  id: string;
+  code: string;
+  title: string;
+  discountPercent: number;
+  createdAt: string;
+  expiresAt: string;
+  isUsed: boolean;
+  pointsCost?: number;
+};
+
+export type PointHistoryItem = {
+  id: string;
+  title: string;
+  points: number; // positive for earned, negative for spent
+  type: 'earned' | 'redeemed' | 'bonus';
+  date: string;
+  orderNumber?: string;
+};
 
 export type UserProfile = {
   name: string;
   email: string;
+  phone?: string;
   role?: string;
   avatar?: string;
+  address?: string;
+  joinedDate?: string;
+  rewardPoints?: number;
+  pointHistory?: PointHistoryItem[];
+  coupons?: UserCoupon[];
 };
+
+export type CouponTier = {
+  id: string;
+  code: string;
+  title: string;
+  discountPercent: number;
+  pointsCost: number;
+  description: string;
+  badge: string;
+};
+
+export const REWARD_COUPON_TIERS: CouponTier[] = [
+  {
+    id: 'tier-20',
+    code: 'REWARD20',
+    title: '20% OFF Feast Saver',
+    discountPercent: 20,
+    pointsCost: 150,
+    description: 'Save 20% on any food order. Redeemable with 150 reward points!',
+    badge: 'Popular',
+  },
+  {
+    id: 'tier-30',
+    code: 'CHEF30',
+    title: '30% OFF Chef Choice',
+    discountPercent: 30,
+    pointsCost: 200,
+    description: 'Save 30% on your delicious meal. Redeemable with 200 reward points.',
+    badge: 'Saver',
+  },
+  {
+    id: 'tier-40',
+    code: 'FEAST40',
+    title: '40% OFF Gourmet Deluxe',
+    discountPercent: 40,
+    pointsCost: 300,
+    description: 'Enjoy 40% discount on your entire cart. Redeemable with 300 points.',
+    badge: 'Best Value',
+  },
+  {
+    id: 'tier-50',
+    code: 'VIP50',
+    title: '50% OFF VIP Half-Price',
+    discountPercent: 50,
+    pointsCost: 400,
+    description: 'Huge 50% discount on all dishes! Redeemable with 400 points.',
+    badge: 'VIP Only',
+  },
+  {
+    id: 'tier-70',
+    code: 'ULTRA70',
+    title: '70% OFF Grand Master Feast',
+    discountPercent: 70,
+    pointsCost: 500,
+    description: 'Ultimate 70% OFF mega reward! Redeemable with 500 reward points.',
+    badge: 'Mega Deal',
+  },
+];
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -28,8 +102,22 @@ interface AuthContextType {
   loginPromptMessage: string;
   openLoginModal: (message?: string, onSuccessCallback?: () => void) => void;
   closeLoginModal: () => void;
-  login: (email?: string, name?: string) => void;
+  login: (email?: string, name?: string, phone?: string, address?: string, isNewAccount?: boolean) => void;
   logout: () => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
+  markCouponUsed: (code: string) => void;
+  addRewardPoints: (points: number, sourceTitle: string, orderNumber?: string) => void;
+  redeemCouponWithPoints: (tier: CouponTier) => { success: boolean; message: string; coupon?: UserCoupon };
+  resetPoints: () => void;
+  getNewUserCouponStatus: () => {
+    coupon: UserCoupon | null;
+    isValid: boolean;
+    isExpired: boolean;
+    isUsed: boolean;
+    remainingDays: number;
+    remainingHours: number;
+    remainingText: string;
+  };
   requireAuth: (action: () => void, message?: string) => boolean;
 }
 
@@ -43,22 +131,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [loginPromptMessage, setLoginPromptMessage] = useState<string>('');
   const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null);
-
-  // Form states for the modal
-  const [isSignUpMode, setIsSignUpMode] = useState<boolean>(false);
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [name, setName] = useState<string>('');
-  const [formError, setFormError] = useState<string>('');
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ title: string; subtitle: string }>({
+    title: 'Signed in successfully!',
+    subtitle: '',
+  });
 
   // Initialize auth state from localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem(AUTH_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.email) {
+        const parsed: UserProfile = JSON.parse(stored);
+        if (parsed && (parsed.email || parsed.phone)) {
+          // Default reward points if missing or outdated legacy scale
+          if (parsed.rewardPoints === undefined || parsed.rewardPoints === 250 || parsed.rewardPoints === 15) {
+            parsed.rewardPoints = 0;
+          }
+          if (!parsed.pointHistory || parsed.pointHistory.length === 0 || parsed.pointHistory[0]?.points === 100) {
+            parsed.pointHistory = [
+              {
+                id: 'ph-welcome',
+                title: 'New Member Welcome Bonus',
+                points: 5,
+                type: 'bonus',
+                date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              },
+              {
+                id: 'ph-init-1',
+                title: 'Earned from Order #TB-92841 ($43.25 spend)',
+                points: 8,
+                type: 'earned',
+                date: new Date(Date.now() - 1000 * 60 * 60 * 24).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                orderNumber: 'TB-92841',
+              },
+            ];
+          }
+
+          // Check if coupon exists, if not generate default 3-day welcome coupon
+          if (!parsed.coupons || parsed.coupons.length === 0) {
+            const now = new Date();
+            const expiry = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+            parsed.coupons = [
+              {
+                id: 'coupon-welcome-10',
+                code: 'WELCOME10',
+                title: 'New User 10% OFF (Valid 3 Days)',
+                discountPercent: 10,
+                createdAt: now.toISOString(),
+                expiresAt: expiry.toISOString(),
+                isUsed: false,
+              },
+            ];
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+          }
           setUser(parsed);
           setIsLoggedIn(true);
         }
@@ -69,12 +195,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    (customEmail?: string, customName?: string) => {
+    (
+      customEmail?: string,
+      customName?: string,
+      customPhone?: string,
+      customAddress?: string,
+      isNewAccount: boolean = false
+    ) => {
+      const now = new Date();
+      // 3 days expiry from creation:
+      const expiry = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+      const welcomeCoupon: UserCoupon = {
+        id: 'coupon-welcome-10',
+        code: 'WELCOME10',
+        title: 'New User 10% OFF',
+        discountPercent: 10,
+        createdAt: now.toISOString(),
+        expiresAt: expiry.toISOString(),
+        isUsed: false,
+      };
+
+      const isNew = Boolean(isNewAccount);
+      const isDemo = !isNew && customEmail === 'alex.vance@example.com' && !customName;
+
       const authUser: UserProfile = {
         name: customName || (customEmail ? customEmail.split('@')[0] : 'Alex Vance'),
         email: customEmail || 'alex.vance@example.com',
-        role: 'Gold Member',
+        phone: customPhone || '+855 12 345 678',
+        role: isNew ? 'Member' : (isDemo ? 'Gold Member' : 'Member'),
+        address: customAddress || 'Phnom Penh, Cambodia',
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        rewardPoints: isNew ? 0 : 0, // Fresh/first user starts with 0 pts
+        pointHistory: [],
+        coupons: [welcomeCoupon],
       };
+
       setUser(authUser);
       setIsLoggedIn(true);
       try {
@@ -83,8 +239,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error saving auth to localStorage', e);
       }
 
+      if (isNewAccount) {
+        setToastMessage({
+          title: 'Account created! 🎁 10% OFF Coupon added',
+          subtitle: 'Code: WELCOME10 (Expires in 3 days) • 0 Points to start',
+        });
+      } else {
+        setToastMessage({
+          title: 'Signed in successfully!',
+          subtitle: `Welcome back, ${authUser.name}`,
+        });
+      }
+
       setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 3000);
+      setTimeout(() => setShowSuccessToast(false), 3500);
 
       // Execute pending action if any
       if (pendingCallback) {
@@ -96,13 +264,219 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setIsLoginModalOpen(false);
-      setEmail('');
-      setPassword('');
-      setName('');
-      setFormError('');
     },
     [pendingCallback]
   );
+
+  const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error updating user profile in localStorage', e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const addRewardPoints = useCallback((points: number, sourceTitle: string, orderNumber?: string) => {
+    if (points <= 0) return;
+    setUser((prev) => {
+      if (!prev) return prev;
+      const newPoints = (prev.rewardPoints || 0) + points;
+      const newHistoryItem: PointHistoryItem = {
+        id: `ph-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        title: sourceTitle,
+        points,
+        type: 'earned',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        orderNumber,
+      };
+      const updatedHistory = [newHistoryItem, ...(prev.pointHistory || [])];
+      const updated: UserProfile = {
+        ...prev,
+        rewardPoints: newPoints,
+        pointHistory: updatedHistory,
+      };
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error adding reward points in localStorage', e);
+      }
+
+      setToastMessage({
+        title: `+${points} Reward Points Earned! ⭐️`,
+        subtitle: `Total balance: ${newPoints} pts`,
+      });
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3500);
+
+      return updated;
+    });
+  }, []);
+
+  const redeemCouponWithPoints = useCallback((tier: CouponTier) => {
+    if (!user) {
+      return { success: false, message: 'Please sign in to redeem coupons.' };
+    }
+
+    const currentPoints = user.rewardPoints || 0;
+    if (currentPoints < tier.pointsCost) {
+      return {
+        success: false,
+        message: `Insufficient points! You need ${tier.pointsCost} pts (Current: ${currentPoints} pts).`,
+      };
+    }
+
+    const now = new Date();
+    // 30 days validity for redeemed reward vouchers
+    const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const uniqueSuffix = Math.floor(1000 + Math.random() * 9000);
+    const newCouponCode = `${tier.code}-${uniqueSuffix}`;
+
+    const newCoupon: UserCoupon = {
+      id: `coupon-${Date.now()}`,
+      code: newCouponCode,
+      title: tier.title,
+      discountPercent: tier.discountPercent,
+      createdAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+      isUsed: false,
+      pointsCost: tier.pointsCost,
+    };
+
+    const newHistoryItem: PointHistoryItem = {
+      id: `ph-redeem-${Date.now()}`,
+      title: `Redeemed ${tier.title} (${tier.code})`,
+      points: -tier.pointsCost,
+      type: 'redeemed',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    };
+
+    const updatedUser: UserProfile = {
+      ...user,
+      rewardPoints: currentPoints - tier.pointsCost,
+      pointHistory: [newHistoryItem, ...(user.pointHistory || [])],
+      coupons: [newCoupon, ...(user.coupons || [])],
+    };
+
+    setUser(updatedUser);
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+    } catch (e) {
+      console.error('Error redeeming coupon in localStorage', e);
+    }
+
+    setToastMessage({
+      title: `Coupon Redeemed! 🎁 ${newCoupon.code}`,
+      subtitle: `${tier.discountPercent}% OFF coupon added to your account!`,
+    });
+    setShowSuccessToast(true);
+    setTimeout(() => setShowSuccessToast(false), 4000);
+
+    return {
+      success: true,
+      message: `Successfully exchanged ${tier.pointsCost} points for ${tier.title}!`,
+      coupon: newCoupon,
+    };
+  }, [user]);
+
+  const resetPoints = useCallback(() => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated: UserProfile = {
+        ...prev,
+        rewardPoints: 0,
+        pointHistory: [],
+      };
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error resetting points in localStorage', e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const markCouponUsed = useCallback((code: string) => {
+    setUser((prev) => {
+      if (!prev || !prev.coupons) return prev;
+      const cleanCode = code.trim().toUpperCase();
+      const updatedCoupons = prev.coupons.map((c) =>
+        c.code.toUpperCase() === cleanCode || (cleanCode.startsWith(c.code.toUpperCase()) && c.code !== 'WELCOME10')
+          ? { ...c, isUsed: true }
+          : c
+      );
+      const updated = { ...prev, coupons: updatedCoupons };
+      try {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error marking coupon used in localStorage', e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const getNewUserCouponStatus = useCallback(() => {
+    if (!user || !user.coupons || user.coupons.length === 0) {
+      return {
+        coupon: null,
+        isValid: false,
+        isExpired: false,
+        isUsed: false,
+        remainingDays: 0,
+        remainingHours: 0,
+        remainingText: 'No coupon available',
+      };
+    }
+
+    const coupon = user.coupons.find((c) => c.code === 'WELCOME10') || user.coupons[0];
+    if (!coupon) {
+      return {
+        coupon: null,
+        isValid: false,
+        isExpired: false,
+        isUsed: false,
+        remainingDays: 0,
+        remainingHours: 0,
+        remainingText: 'No coupon',
+      };
+    }
+
+    const now = new Date().getTime();
+    const expiryTime = new Date(coupon.expiresAt).getTime();
+    const diffMs = expiryTime - now;
+    const isExpired = diffMs <= 0;
+    const isUsed = coupon.isUsed;
+    const isValid = !isExpired && !isUsed;
+
+    const remainingTotalHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+    const remainingDays = Math.floor(remainingTotalHours / 24);
+    const remainingHours = remainingTotalHours % 24;
+
+    let remainingText = '';
+    if (isUsed) {
+      remainingText = 'Already Redeemed';
+    } else if (isExpired) {
+      remainingText = 'Expired (After 3 Days)';
+    } else if (remainingDays > 0) {
+      remainingText = `${remainingDays}d ${remainingHours}h remaining`;
+    } else {
+      remainingText = `${remainingHours}h remaining`;
+    }
+
+    return {
+      coupon,
+      isValid,
+      isExpired,
+      isUsed,
+      remainingDays,
+      remainingHours,
+      remainingText,
+    };
+  }, [user]);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -121,17 +495,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setPendingCallback(null);
     }
-    setFormError('');
     setIsLoginModalOpen(true);
   }, []);
 
   const closeLoginModal = useCallback(() => {
     setIsLoginModalOpen(false);
     setPendingCallback(null);
-    setFormError('');
   }, []);
 
-  // requireAuth: if logged in, executes action and returns true. If not logged in, opens login modal with message and queues action.
   const requireAuth = useCallback(
     (action: () => void, message?: string): boolean => {
       if (isLoggedIn) {
@@ -148,23 +519,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [isLoggedIn, openLoginModal]
   );
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setFormError('Please enter your email address.');
-      return;
-    }
-    if (!password.trim() || password.length < 4) {
-      setFormError('Password must be at least 4 characters.');
-      return;
-    }
-    login(email, isSignUpMode && name.trim() ? name.trim() : undefined);
-  };
-
-  const handleQuickDemoLogin = () => {
-    login('alex.vance@example.com', 'Alex Vance');
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -176,6 +530,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         closeLoginModal,
         login,
         logout,
+        updateUserProfile,
+        markCouponUsed,
+        addRewardPoints,
+        redeemCouponWithPoints,
+        resetPoints,
+        getNewUserCouponStatus,
         requireAuth,
       }}
     >
@@ -184,217 +544,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {/* Global Success Notification Toast */}
       {showSuccessToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-900/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-emerald-500/30 animate-slideUp">
-          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-            <CheckCircle2 size={18} />
+          <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <Gift size={18} className="text-amber-200" />
           </div>
           <div>
-            <div className="text-xs font-bold leading-tight">Signed in successfully!</div>
-            <div className="text-[11px] text-emerald-200">
-              Welcome back, {user?.name || 'Valued Member'}
-            </div>
+            <div className="text-xs font-bold leading-tight">{toastMessage.title}</div>
+            <div className="text-[11px] text-emerald-200">{toastMessage.subtitle}</div>
           </div>
         </div>
       )}
 
-      {/* Unified High-End Login Modal */}
-      {isLoginModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm transition-all duration-300"
-          onClick={closeLoginModal}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 transition-all duration-300 transform scale-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Top Brand Banner */}
-            <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white p-6 relative">
-              <button
-                type="button"
-                onClick={closeLoginModal}
-                className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                aria-label="Close modal"
-              >
-                <X size={16} />
-              </button>
-
-              <div className="flex items-center gap-2 text-emerald-200 text-xs font-bold uppercase tracking-wider mb-1">
-                <Sparkles size={14} className="text-amber-300 animate-pulse" />
-                <span>TastyByte Ordering System</span>
-              </div>
-
-              <h2 className="text-xl sm:text-2xl font-black text-white">
-                {isSignUpMode ? 'Create Your Account' : 'Welcome Back'}
-              </h2>
-
-              <p className="mt-1 text-xs text-emerald-100/90 leading-relaxed">
-                {loginPromptMessage ||
-                  (isSignUpMode
-                    ? 'Join TastyByte to order fresh meals, earn reward points, and track deliveries.'
-                    : 'Sign in to order food, save favorites, and access exclusive member discounts.')}
-              </p>
-
-              {/* Order Requirement Alert Pill */}
-              {loginPromptMessage && (
-                <div className="mt-3.5 flex items-center gap-2 bg-amber-400/20 border border-amber-300/40 text-amber-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                  <UtensilsCrossed size={14} className="text-amber-300 shrink-0" />
-                  <span>Login required to order from menu</span>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 sm:p-7 space-y-4">
-              {/* Quick 1-Click Demo Login Button for convenient testing */}
-              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-emerald-900 flex items-center gap-1.5">
-                    <KeyRound size={13} className="text-emerald-600" />
-                    <span>Instant Demo Access</span>
-                  </span>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
-                    1-Click
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleQuickDemoLogin}
-                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-bold rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <User size={14} />
-                  <span>Continue as Alex Vance (Demo)</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-
-              {/* Divider */}
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-gray-200 w-full" />
-                <span className="bg-white px-3 text-[11px] font-semibold text-gray-400 uppercase">
-                  or sign in with credentials
-                </span>
-              </div>
-
-              {/* Sign In / Sign Up Form */}
-              <form onSubmit={handleFormSubmit} className="space-y-3.5">
-                {isSignUpMode && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Full Name
-                    </label>
-                    <div className="relative">
-                      <User
-                        size={15}
-                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                      />
-                      <input
-                        type="text"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail
-                      size={15}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                      type="email"
-                      required
-                      placeholder="your.email@example.com"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setFormError('');
-                      }}
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700">
-                      Password
-                    </label>
-                    {!isSignUpMode && (
-                      <span className="text-[11px] text-emerald-700 font-medium hover:underline cursor-pointer">
-                        Forgot password?
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Lock
-                      size={15}
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setFormError('');
-                      }}
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {formError && (
-                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded-xl font-medium">
-                    {formError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-sm transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>{isSignUpMode ? 'Create Account & Order' : 'Sign In & Continue'}</span>
-                  <ArrowRight size={14} />
-                </button>
-              </form>
-
-              {/* Toggle Sign in / Sign up */}
-              <div className="pt-2 text-center text-xs text-gray-500 border-t border-gray-100 flex items-center justify-center gap-1.5">
-                <span>
-                  {isSignUpMode
-                    ? 'Already have an account?'
-                    : "Don't have an account yet?"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUpMode(!isSignUpMode);
-                    setFormError('');
-                  }}
-                  className="text-emerald-700 font-bold hover:underline cursor-pointer"
-                >
-                  {isSignUpMode ? 'Sign In' : 'Create Free Account'}
-                </button>
-              </div>
-
-              {/* Trust Badge */}
-              <div className="flex items-center justify-center gap-1 text-[11px] text-gray-400 text-center pt-1">
-                <ShieldCheck size={13} className="text-emerald-600" />
-                <span>Secure SSL encrypted connection</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* High-End Login & Registration Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={closeLoginModal}
+        promptMessage={loginPromptMessage}
+      />
     </AuthContext.Provider>
   );
 }

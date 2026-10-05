@@ -1,23 +1,21 @@
 "use client";
 
 import { useMemo, useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import TopBar from "../components/topbar";
 import Navbar from "../components/navbar";
 import Sidebar from "../components/sidebar";
 import Footer from "../components/Footer";
 import PictureCard, { FoodMenuItem } from "./PictureCard";
-import CartPanel, { CartItem } from "./CartPanel";
 import { useAuth } from "../context/AuthContext";
+import { useOrders } from "../context/OrderContext";
 import {
   Search,
   Sparkles,
-  ShoppingBag,
   CheckCircle2,
   ArrowUpDown,
-  X,
-  ChevronRight,
-  Receipt,
+  ShoppingBag,
 } from "lucide-react";
 
 const FOOD_ITEMS: FoodMenuItem[] = [
@@ -150,7 +148,7 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     description:
       "Balsamic grilled giant portobello cap, truffle mayo, baby arugula, and goat cheese spread.",
     imageUrl:
-      "https://images.unsplash.com/photo-1582196016295-f8c8bd4b3e99?auto=format&fit=crop&w=800&q=80",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTuIfU2gZnlYpfHO4Jr8SUXFzwjt7VNUhEOlEzqKmjlKQ&s=10",
     prepTime: "14 min",
     calories: 640,
     isVegetarian: true,
@@ -241,7 +239,7 @@ const FOOD_ITEMS: FoodMenuItem[] = [
   },
   {
     id: "sp3",
-    name: "Thai Coconut Lemongrass Tom Yum",
+    name: "Coconut Lemongrass Tom Yum",
     category: "Soups",
     categoryId: "soups",
     price: 13.5,
@@ -250,7 +248,7 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     description:
       "Jumbo prawns, galangal, kaffir lime leaves, straw mushrooms in an aromatic coconut broth.",
     imageUrl:
-      "https://images.unsplash.com/photo-1548946526-f69e2424cf45?auto=format&fit=crop&w=800&q=80",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQP1WJZMirBAhkLn3BRC-cudzg2il5rSV3wlFm8pzODsA&s=10",
     tag: "Chef's Pick",
     prepTime: "12 min",
     calories: 420,
@@ -289,7 +287,38 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     prepTime: "10 min",
     calories: 520,
   },
-
+   {
+    id: "sl3",
+    name: "Caprese Salad",
+    category: "Salads",
+    categoryId: "salads",
+    price: 16.5,
+    rating: 4.9,
+    reviews: 114,
+    description:
+      "Fresh mozzarella, ripe tomatoes, and basil with balsamic glaze.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRN92adBUfPff-f4xIQLaMQ17Z0mPttoArcxPYpHE8RnA&s=10",
+    tag: "Healthy",
+    prepTime: "10 min",
+    calories: 520,
+  },
+   {
+    id: "sl4",
+    name: "Spinach and Strawberry Salad",
+    category: "Salads",
+    categoryId: "salads",
+    price: 16.5,
+    rating: 4.9,
+    reviews: 114,
+    description:
+      "Spinach, fresh strawberries, feta cheese, and balsamic vinaigrette.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLtb37g_btRHlusaiH14a17rmg65Hz8MoC78kBwZUrEA&s=10",
+    tag: "Healthy",
+    prepTime: "10 min",
+    calories: 520,
+  },
   // Vegan (11 category)
   {
     id: "v1",
@@ -324,6 +353,54 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     calories: 390,
     isVegetarian: true,
   },
+   {
+    id: "v3",
+    name: "Rice Paper Rolls",
+    category: "Vegan",
+    categoryId: "vegan",
+    price: 12.0,
+    rating: 4.7,
+    reviews: 55,
+    description:
+      "Rice paper rolls filled with fresh vegetables, herbs, and vermicelli noodles.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiLluXJWCmoraze7V_hEdQ2lPloyuNJ9hJm3QONZHhuQ&s=10",
+    prepTime: "10 min",
+    calories: 390,
+    isVegetarian: true,
+  },
+   {
+    id: "v4",
+    name: "Spicy Peanut Noodles",
+    category: "Vegan",
+    categoryId: "vegan",
+    price: 12.0,
+    rating: 4.7,
+    reviews: 55,
+    description:
+      "Warm noodles tossed in a rich peanut sauce with shredded carrots, bell peppers, and green onions.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhW1LedcZJT6ylvp33swmLerYMefvvFTu5N7i7aDjbIQ&s=10",
+    prepTime: "10 min",
+    calories: 390,
+    isVegetarian: true,
+  },
+   {
+    id: "v5",
+    name: "Sweet Potato Fries",
+    category: "Vegan",
+    categoryId: "vegan",
+    price: 12.0,
+    rating: 4.7,
+    reviews: 55,
+    description:
+      " Crispy sweet potato fries seasoned with sea salt and served with a side of vegan aioli.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQShueKMDZRbOQcpkOrHJi1H2qdAh3JtNJ3iJBc51PIkw&s=10",
+    prepTime: "10 min",
+    calories: 390,
+    isVegetarian: true,
+  },
 
   // Drinks (20 category)
   {
@@ -337,7 +414,7 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     description:
       "Single-origin Uji matcha whisked fresh over oat milk and light organic agave nectar.",
     imageUrl:
-      "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=800&q=80",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQpIbOoZTyeLBITAN-pBJ3Dqp0Z2WF_sv56XOo9GywAnw&s=10",
     tag: "Trending",
     prepTime: "3 min",
     calories: 140,
@@ -375,7 +452,51 @@ const FOOD_ITEMS: FoodMenuItem[] = [
     calories: 15,
     isVegetarian: true,
   },
-
+  {
+    id: "d4",
+    name: "Orange Juice",
+    category: "Drinks",
+    categoryId: "drinks",
+    price: 2.5,
+    rating: 4.5,
+    reviews: 52,
+    description: "Fresh Orange Juice",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQzDkbWO3mXEDWHhMeQYD9wDrFpHhL6Z60w5afWUVoIlQ&s=10",
+    prepTime: "2 min",
+    calories: 15,
+    isVegetarian: true,
+  },
+  {
+    id: "d5",
+    name: "Ice Latte",
+    category: "Drinks",
+    categoryId: "drinks",
+    price: 3.5,
+    rating: 4.5,
+    reviews: 52,
+    description: "Fresh Ice Latte",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSoukS6flmACeI7s87ROZuOkQ77Iu0BCXhVN-35AinGYA&s=10",
+    prepTime: "2 min",
+    calories: 15,
+    isVegetarian: true,
+  },
+  {
+    id: "d6",
+    name: "Lemon Tea",
+    category: "Drinks",
+    categoryId: "drinks",
+    price: 2.5,
+    rating: 4.5,
+    reviews: 52,
+    description: "Fresh Lemon Tea",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUb4dFFOROSoBH4JueAEGZBEf7AiqHhzkahV_ZX_GSMA&s=10",
+    prepTime: "2 min",
+    calories: 15,
+    isVegetarian: true,
+  },
   // Desserts (18 category)
   {
     id: "ds1",
@@ -422,6 +543,54 @@ const FOOD_ITEMS: FoodMenuItem[] = [
       "Caramelized baked crust with an ultra-creamy, custard-like center and berry compote.",
     imageUrl:
       "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=800&q=80",
+    prepTime: "5 min",
+    calories: 480,
+    isVegetarian: true,
+  },
+    {
+    id: "ds4",
+    name: "Oreo Chocolate",
+    category: "Desserts",
+    categoryId: "desserts",
+    price: 2.5,
+    rating: 4.6,
+    reviews: 300,
+    description:
+      "Oreo Dessert is a delicious dessert made with Oreo cookies, cream, and chocolate.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ4lXQbCvKaFmDWNXGDkmRFO8wkrOYD05u1-p1fyNpwgnFBidCHbR1rymlB&s=10",
+    prepTime: "5 min",
+    calories: 480,
+    isVegetarian: true,
+  },
+    {
+    id: "ds5",
+    name: "Caramel Pudding",
+    category: "Desserts",
+    categoryId: "desserts",
+    price: 1.5,
+    rating: 4.9,
+    reviews: 250,
+    description:
+      "Caramelized baked crust with an ultra-creamy, custard-like center and berry compote.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuKM46uonWsNFQB19Nj4pt2Li4PQgeA78WHgjFqZxqIQ&s=10",
+    prepTime: "5 min",
+    calories: 480,
+    isVegetarian: true,
+  },
+    {
+    id: "ds6",
+    name: "Tiramisu ",
+    category: "Desserts",
+    categoryId: "desserts",
+    price: 4.0,
+    rating: 4.8,
+    reviews: 96,
+    description:
+      "Tiramisu is a delicious dessert made with coffee, ladyfingers, and mascarpone cheese.",
+    imageUrl:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJoD6b3imF2bhRbve3ewHE1HYz284JtY1DDNZs0sek0w&s=10  ",
     prepTime: "5 min",
     calories: 480,
     isVegetarian: true,
@@ -512,18 +681,12 @@ function FoodCatalogContent() {
     }
   }, [searchParam]);
 
-  // Cart State - starts completely empty (0 items)
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-
-  // Controls the Slide-in Right Order Sidebar
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<string | null>(null);
 
   const currentMeta = CATEGORY_META[selectedCategory] || CATEGORY_META.all;
-  const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalCartSubtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const { requireAuth } = useAuth();
+  const { orders, activeOrders, totalCartCount, totalCartSubtotal } = useOrders();
 
   // Filter & sort food items
   const filteredItems = useMemo(() => {
@@ -553,56 +716,15 @@ function FoodCatalogContent() {
     });
   }, [selectedCategory, searchQuery, vegetarianOnly, sortBy]);
 
-  // When Add is pressed -> Requires user to be logged in before adding to cart
+  // When Add is pressed -> show toast confirmation
   const handleAddToCart = (food: FoodMenuItem) => {
-    requireAuth(() => {
-      setCartItems((prev) => {
-        const existing = prev.find((i) => i.id === food.id);
-        if (existing) {
-          return prev.map((i) =>
-            i.id === food.id ? { ...i, quantity: i.quantity + 1 } : i
-          );
-        } else {
-          return [
-            ...prev,
-            {
-              id: food.id,
-              name: food.name,
-              category: food.category,
-              price: food.price,
-              quantity: 1,
-              imageUrl: food.imageUrl,
-            },
-          ];
-        }
-      });
-
-      setLastAddedItem(food.name);
-      setTimeout(() => setLastAddedItem(null), 3000);
-    }, `Please log in to order ${food.name}.`);
-  };
-
-  const handleUpdateQuantity = (id: string, newQty: number) => {
-    if (newQty <= 0) {
-      handleRemoveItem(id);
-    } else {
-      setCartItems((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, quantity: newQty } : i))
-      );
-    }
-  };
-
-  const handleRemoveItem = (id: string) => {
-    setCartItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handleClearCart = () => {
-    setCartItems([]);
+    setLastAddedItem(food.name);
+    setTimeout(() => setLastAddedItem(null), 3000);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between">
-      <div className="sticky top-0 z-50 w-full bg-white transition-all duration-200">
+      <div>
         <TopBar />
         <Navbar />
 
@@ -622,7 +744,7 @@ function FoodCatalogContent() {
               </p>
             </div>
 
-            {/* Header Right Stats & Order Button */}
+            {/* Header Right Stats */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
                 <div className="text-left">
@@ -643,16 +765,30 @@ function FoodCatalogContent() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* View Order Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsRightSidebarOpen(true)}
-                className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-gray-900 font-bold px-4 py-2.5 rounded-2xl shadow-sm text-xs transition-all active:scale-95"
-              >
-                <ShoppingBag size={16} />
-                <span>View Order ({totalCartCount}) • ${totalCartSubtotal.toFixed(2)}</span>
-              </button>
+        {/* Loyalty Reward Info Strip */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 border-b border-emerald-100 py-2.5 px-4 sm:px-6">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-wrap text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="flex h-5 w-5 rounded-full bg-amber-500 text-white items-center justify-center text-[11px] font-black shrink-0 shadow-2xs">
+                ★
+              </span>
+              <span className="font-bold text-gray-800">
+                Loyalty Rewards:
+              </span>
+              <span className="text-gray-600">
+                $10 = <strong className="text-emerald-700">2 Points</strong> ($5 = 1 pt)
+              </span>
+              <span className="text-gray-300 hidden sm:inline">•</span>
+              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-2 py-0.5 rounded-full text-[11px]">
+                ⚡ $20 = 4 pts • $100 = 20 pts!
+              </span>
+            </div>
+            <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+              <span>Exchange points from 150 pts up to 70% OFF coupons</span>
             </div>
           </div>
         </div>
@@ -660,7 +796,7 @@ function FoodCatalogContent() {
         {/* Main Content Layout */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-start gap-8">
-            
+
             {/* Left Category Sidebar with amount of each menu */}
             <div className="w-full md:w-64 shrink-0 sticky top-20">
               <Sidebar
@@ -669,21 +805,38 @@ function FoodCatalogContent() {
                 cartCount={totalCartCount}
               />
 
-              {/* Quick info card */}
-              <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-xs hidden md:block">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-200 uppercase mb-1">
-                  <span>⚡ Fast Order</span>
+              {/* Quick Order Menu Card in Sidebar */}
+              <div className="mt-5 p-4 rounded-3xl bg-white border border-gray-200/90 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black text-gray-900">
+                    <ShoppingBag size={15} className="text-emerald-600" />
+                    <span>Your Order Menu</span>
+                  </div>
+                  <span className="text-[10.5px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
+                    {totalCartCount} {totalCartCount === 1 ? "item" : "items"}
+                  </span>
                 </div>
-                <h4 className="text-xs font-bold">Free Delivery Over $35</h4>
-                <p className="text-[11px] text-emerald-100 mt-1 leading-relaxed">
-                  Click <b>Add</b> on any menu card to see the order sidebar slide in from the right with instant bill calculation!
-                </p>
+
+                <div className="flex items-baseline justify-between text-xs text-gray-600 pt-1 border-t border-gray-100">
+                  <span>Current Bill:</span>
+                  <span className="text-sm font-black text-emerald-800 font-mono">
+                    ${totalCartSubtotal.toFixed(2)}
+                  </span>
+                </div>
+
+                <Link
+                  href="/Orders"
+                  className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95"
+                >
+                  <ShoppingBag size={13} />
+                  <span>View Order Menu &amp; Bill</span>
+                </Link>
               </div>
             </div>
 
             {/* Food Picture Cards Grid Area */}
             <div className="flex-1 w-full min-w-0">
-              
+
               {/* Search & Filter Toolbar */}
               <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 {/* Search Bar */}
@@ -711,15 +864,15 @@ function FoodCatalogContent() {
 
                 {/* Filters / Sort Controls */}
                 <div className="flex items-center gap-2 flex-wrap">
+
                   {/* Vegetarian Filter Pill */}
                   <button
                     type="button"
                     onClick={() => setVegetarianOnly(!vegetarianOnly)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${
-                      vegetarianOnly
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                    }`}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${vegetarianOnly
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                      }`}
                   >
                     <span>🌱 Veg Only</span>
                   </button>
@@ -751,13 +904,6 @@ function FoodCatalogContent() {
                       Added <strong>{lastAddedItem}</strong> to order!
                     </span>
                   </div>
-                  <button
-                    onClick={() => setIsRightSidebarOpen(true)}
-                    className="flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-bold text-[11.5px] bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-1 rounded-xl transition-colors"
-                  >
-                    <span>View Order</span>
-                    <ChevronRight size={13} />
-                  </button>
                 </div>
               )}
 
@@ -800,60 +946,6 @@ function FoodCatalogContent() {
             </div>
           </div>
         </div>
-
-        {/* ============================================================ */}
-        {/* SLIDE-OUT ORDER SIDEBAR (Sliding from Right Side of Screen) */}
-        {/* ============================================================ */}
-        
-        {/* Dimmed Overlay Backdrop */}
-        <div
-          className={`fixed inset-0 bg-black/40 backdrop-blur-xs z-50 transition-opacity duration-300 ${
-            isRightSidebarOpen
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
-          }`}
-          onClick={() => setIsRightSidebarOpen(false)}
-          aria-hidden="true"
-        />
-
-        {/* The Right Order Sidebar Container */}
-        <aside
-          className={`fixed top-0 right-0 bottom-0 w-full sm:w-[420px] max-w-full bg-white z-50 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out transform ${
-            isRightSidebarOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-          aria-label="Order Cart Sidebar"
-        >
-          <CartPanel
-            items={cartItems}
-            onCloseAction={() => setIsRightSidebarOpen(false)}
-            onUpdateQuantityAction={handleUpdateQuantity}
-            onRemoveItemAction={handleRemoveItem}
-            onClearCartAction={handleClearCart}
-            isFloatingDrawer={true}
-          />
-        </aside>
-
-        {/* Floating Side Tab / Button (Sticky on right side for easy access) */}
-        <button
-          type="button"
-          onClick={() => setIsRightSidebarOpen((prev) => !prev)}
-          className={`fixed right-0 top-1/2 -translate-y-1/2 z-40 bg-emerald-700 hover:bg-emerald-800 text-white py-3.5 px-3 rounded-l-2xl shadow-xl flex flex-col items-center gap-2 border-l border-t border-b border-emerald-500/40 transition-all ${
-            isRightSidebarOpen ? "translate-x-full" : "translate-x-0"
-          }`}
-          aria-label="Toggle Order Sidebar"
-        >
-          <div className="relative">
-            <ShoppingBag size={20} />
-            {totalCartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-amber-400 text-gray-900 font-extrabold text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
-                {totalCartCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] font-bold tracking-tight writing-mode-vertical">
-            Order • ${totalCartSubtotal.toFixed(0)}
-          </span>
-        </button>
 
       </div>
 

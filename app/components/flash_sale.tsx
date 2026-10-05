@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Zap, Flame, Clock, Star, Plus, Check, Heart, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
+import { useOrders } from "../context/OrderContext";
 
 export type FlashSaleItem = {
   id: string;
@@ -134,6 +135,7 @@ export function FlashSaleCard({
   isVisible?: boolean;
 }) {
   const { requireAuth } = useAuth();
+  const { addToCart } = useOrders();
   const [isLiked, setIsLiked] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const percentClaimed = Math.min(100, Math.round((item.soldCount / item.totalStock) * 100));
@@ -143,6 +145,14 @@ export function FlashSaleCard({
     e.stopPropagation();
     requireAuth(() => {
       setIsAdded(true);
+      addToCart({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        imageUrl: item.imageUrl,
+        quantity: 1,
+      });
       setTimeout(() => setIsAdded(false), 1500);
     }, `Please log in to grab flash deal for ${item.name}.`);
   };
